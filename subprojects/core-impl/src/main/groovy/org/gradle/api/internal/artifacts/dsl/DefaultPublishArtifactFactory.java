@@ -13,13 +13,15 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
- 
+
 package org.gradle.api.internal.artifacts.dsl;
 
 import org.apache.commons.lang.StringUtils;
+import org.apache.tools.ant.Task;
 import org.gradle.api.InvalidUserDataException;
 import org.gradle.api.artifacts.Module;
 import org.gradle.api.artifacts.PublishArtifact;
+import org.gradle.api.internal.Instantiator;
 import org.gradle.api.internal.artifacts.configurations.DependencyMetaDataProvider;
 import org.gradle.api.internal.artifacts.publish.ArchivePublishArtifact;
 import org.gradle.api.internal.artifacts.publish.DefaultPublishArtifact;
@@ -31,18 +33,24 @@ import java.io.File;
  * @author Hans Dockter
  */
 public class DefaultPublishArtifactFactory implements PublishArtifactFactory {
+    private final Instantiator instantiator;
     private final DependencyMetaDataProvider metaDataProvider;
 
-    public DefaultPublishArtifactFactory(DependencyMetaDataProvider metaDataProvider) {
+    public DefaultPublishArtifactFactory(Instantiator instantiator, DependencyMetaDataProvider metaDataProvider) {
+        this.instantiator = instantiator;
         this.metaDataProvider = metaDataProvider;
     }
 
-    public PublishArtifact createArtifact(Object notation) {
+    public boolean canParse(Object notation) {
+        throw new UnsupportedOperationException();
+    }
+
+    public PublishArtifact parseNotation(Object notation) {
         if (notation instanceof PublishArtifact) {
             return (PublishArtifact) notation;
         }
         if (notation instanceof AbstractArchiveTask) {
-            return new ArchivePublishArtifact((AbstractArchiveTask) notation);
+            return instantiator.newInstance(ArchivePublishArtifact.class, notation);
         }
         if (notation instanceof File) {
             File file = (File) notation;
@@ -82,7 +90,7 @@ public class DefaultPublishArtifactFactory implements PublishArtifactFactory {
                 classifier = null;
             }
 
-            return new DefaultPublishArtifact(name, extension, extension, classifier, null, file);
+            return instantiator.newInstance(DefaultPublishArtifact.class, name, extension, extension, classifier, null, file, new Task[0]);
         }
 
         throw new InvalidUserDataException("Notation is invalid for an artifact! Passed notation=" + notation);

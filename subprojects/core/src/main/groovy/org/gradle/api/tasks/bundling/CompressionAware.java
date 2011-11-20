@@ -1,5 +1,5 @@
 /*
- * Copyright 2009 the original author or authors.
+ * Copyright 2011 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -13,13 +13,16 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.gradle.api.internal.artifacts.dsl;
 
-import org.gradle.api.artifacts.PublishArtifact;
+package org.gradle.api.tasks.bundling;
 
 /**
- * @author Hans Dockter
+ * Aware about the compression
  */
-public interface PublishArtifactFactory {
-    PublishArtifact createArtifact(Object notation);
+public interface CompressionAware {
+
+    /**
+     * the compression
+     */
+    Compression getCompression();
 }

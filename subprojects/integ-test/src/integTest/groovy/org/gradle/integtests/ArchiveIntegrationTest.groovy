@@ -17,11 +17,11 @@
 
 package org.gradle.integtests
 
+import org.gradle.integtests.fixtures.internal.AbstractIntegrationTest
 import org.gradle.util.TestFile
 import org.junit.Test
-import static org.junit.Assert.*
-import static org.hamcrest.Matchers.*
-import org.gradle.integtests.fixtures.internal.AbstractIntegrationTest
+import static org.hamcrest.Matchers.equalTo
+import static org.junit.Assert.assertThat
 
 public class ArchiveIntegrationTest extends AbstractIntegrationTest {
     @Test public void canCopyFromAZip() {
@@ -70,6 +70,141 @@ public class ArchiveIntegrationTest extends AbstractIntegrationTest {
         inTestDirectory().withTasks('copy').run()
 
         testFile('dest').assertHasDescendants('subdir1/file1.txt', 'subdir2/file2.txt')
+    }
+
+    @Test public void "handles gzip compressed tars"() {
+        TestFile tar = file()
+        tar.create {
+            someDir {
+                file '1.txt'
+                file '2.txt'
+            }
+        }
+        tar.tgzTo(file('test.tgz'))
+
+        file('build.gradle') << '''
+            task copy(type: Copy) {
+                from tarTree('test.tgz')
+                exclude '**/2.txt'
+                into 'dest'
+            }
+'''
+
+        inTestDirectory().withTasks('copy').run()
+
+        file('dest').assertHasDescendants('someDir/1.txt')
+    }
+
+    @Test public void "handles bzip2 compressed tars"() {
+        TestFile tar = file()
+        tar.create {
+            someDir {
+                file '1.txt'
+                file '2.txt'
+            }
+        }
+        tar.tbzTo(file('test.tbz2'))
+
+        file('build.gradle') << '''
+            task copy(type: Copy) {
+                from tarTree('test.tbz2')
+                exclude '**/2.txt'
+                into 'dest'
+            }
+'''
+
+        inTestDirectory().withTasks('copy').run()
+
+        file('dest').assertHasDescendants('someDir/1.txt')
+    }
+
+     @Test public void "knows compression of the tar"() {
+        TestFile tar = file()
+        tar.tbzTo(file('test.tbz2'))
+
+        file('build.gradle') << '''
+            task checkTarTree << {
+                def t = tarTree('test.tbz2')
+
+                t.compression = Compression.NONE
+                assert t.compression == Compression.NONE
+
+                t.compression = Compression.GZIP
+                assert t.compression == Compression.GZIP
+
+                t.compression = Compression.BZIP2
+                assert t.compression == Compression.BZIP2
+
+                t.decompressor = {} as Decompressor
+                assert t.compression == Compression.NONE
+            }
+
+            task myTar(type: Tar) {
+                compression = Compression.NONE
+                assert compression == Compression.NONE
+
+                compression = Compression.GZIP
+                assert compression == Compression.GZIP
+
+                compression = Compression.BZIP2
+                assert compression == Compression.BZIP2
+
+                compressor = {} as Compressor
+                assert compression == Compression.NONE
+            }
+'''
+
+        inTestDirectory().withTasks('checkTarTree').run()
+    }
+
+    @Test public void "can choose compression method for tarTree"() {
+        TestFile tar = file()
+        tar.create {
+            someDir {
+                file '1.txt'
+                file '2.txt'
+            }
+        }
+        //file extension is non-standard:
+        tar.tbzTo(file('test.ext'))
+
+        file('build.gradle') << '''
+            task copy(type: Copy) {
+                def tree = tarTree('test.ext') {
+                    compression = Compression.BZIP2
+                }
+                from tree
+                exclude '**/2.txt'
+                into 'dest'
+            }
+'''
+
+        inTestDirectory().withTasks('copy').run()
+
+        file('dest').assertHasDescendants('someDir/1.txt')
+    }
+
+    @Test public void "tarTree fails gracefully if cannot decompress"() {
+        TestFile tar = file()
+        tar.create {
+            someDir {
+                file '1.txt'
+                file '2.txt'
+            }
+        }
+        //file extension is different than the compression mode:
+        tar.tbzTo(file('test.tar'))
+
+        file('build.gradle') << '''
+            task copy(type: Copy) {
+                from tarTree('test.tar')
+                into 'dest'
+            }
+'''
+
+        def failure = inTestDirectory().withTasks('copy').runWithFailure()
+        assert failure.error.contains("Unable to expand TAR")
+        assert failure.error.contains("compression based on the file extension")
     }
 
     @Test public void cannotCreateAnEmptyZip() {

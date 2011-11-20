@@ -23,26 +23,42 @@ import org.gradle.api.file.FileVisitDetails;
 import org.gradle.api.file.FileVisitor;
 import org.gradle.api.file.RelativePath;
 import org.gradle.api.internal.file.AbstractFileTreeElement;
+import org.gradle.api.internal.file.archive.compression.FileExtensionBasedDecompressor;
 import org.gradle.api.internal.file.collections.DirectoryFileTree;
 import org.gradle.api.internal.file.collections.FileSystemMirroringFileTree;
 import org.gradle.api.internal.file.collections.MinimalFileTree;
+import org.gradle.api.tasks.bundling.Decompressor;
 import org.gradle.util.GFileUtils;
 import org.gradle.util.HashUtil;
 
 import java.io.File;
-import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 public class TarFileTree implements MinimalFileTree, FileSystemMirroringFileTree {
     private final File tarFile;
+    private Decompressor decompressor;
     private final File tmpDir;
 
     public TarFileTree(File tarFile, File tmpDir) {
+            this(tarFile, tmpDir, new FileExtensionBasedDecompressor());
+    }
+
+    public TarFileTree(File tarFile, File tmpDir, Decompressor decompressor) {
         this.tarFile = tarFile;
+        this.decompressor = decompressor;
         String expandDirName = String.format("%s_%s", tarFile.getName(), HashUtil.createHash(tarFile.getAbsolutePath()));
         this.tmpDir = new File(tmpDir, expandDirName);
+    }
+
+    public Decompressor getDecompressor() {
+        return decompressor;
+    }
+
+    public void setDecompressor(Decompressor decompressor) {
+        assert decompressor != null: "decompressor cannot be null!";
+        this.decompressor = decompressor;
     }
 
     public String getDisplayName() {
@@ -61,25 +77,35 @@ public class TarFileTree implements MinimalFileTree, FileSystemMirroringFileTree
             throw new InvalidUserDataException(String.format("Cannot expand %s as it is not a file.", getDisplayName()));
         }
 
-        AtomicBoolean stopFlag = new AtomicBoolean();
         try {
-            FileInputStream inputStream = new FileInputStream(tarFile);
+            InputStream inputStream = null;
             try {
-                NoCloseTarInputStream tar = new NoCloseTarInputStream(inputStream);
-                TarEntry entry;
-                while (!stopFlag.get() && (entry = tar.getNextEntry()) != null) {
-                    if (entry.isDirectory()) {
-                        visitor.visitDir(new DetailsImpl(entry, tar, stopFlag));
-                    } else {
-                        visitor.visitFile(new DetailsImpl(entry, tar, stopFlag));
-                    }
-
-                }
+                inputStream = decompressor.decompress(tarFile);
+                visitImpl(visitor, inputStream);
             } finally {
+                assert inputStream != null;
                 inputStream.close();
             }
         } catch (Exception e) {
-            throw new GradleException(String.format("Could not expand %s.", getDisplayName()), e);
+            String message = "Unable to expand " + getDisplayName() + "\n"
+                    + "  The tar might be corrupted or it is compressed in an unexpected way.\n"
+                    + "  By default the tar tree tries to guess the compression based on the file extension.\n"
+                    + "  If you need to specify the compression explicitly please refer to the DSL reference.";
+            throw new GradleException(message, e);
+        }
+    }
+
+    private void visitImpl(FileVisitor visitor, InputStream inputStream) throws IOException {
+        AtomicBoolean stopFlag = new AtomicBoolean();
+        NoCloseTarInputStream tar = new NoCloseTarInputStream(inputStream);
+        TarEntry entry;
+        while (!stopFlag.get() && (entry = tar.getNextEntry()) != null) {
+            if (entry.isDirectory()) {
+                visitor.visitDir(new DetailsImpl(entry, tar, stopFlag));
+            } else {
+                visitor.visitFile(new DetailsImpl(entry, tar, stopFlag));
+            }
+
         }
     }
 

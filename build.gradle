@@ -51,18 +51,18 @@ libraries = [
 ]
 
 // Logging
-libraries.slf4j_api = 'org.slf4j:slf4j-api:1.6.2@jar'
-libraries.jcl_to_slf4j = dependencies.module('org.slf4j:jcl-over-slf4j:1.6.2') {
+libraries.slf4j_api = 'org.slf4j:slf4j-api:1.6.4@jar'
+libraries.jcl_to_slf4j = dependencies.module('org.slf4j:jcl-over-slf4j:1.6.4') {
     dependency libraries.slf4j_api
 }
-libraries.jul_to_slf4j = dependencies.module('org.slf4j:jul-to-slf4j:1.6.2') {
+libraries.jul_to_slf4j = dependencies.module('org.slf4j:jul-to-slf4j:1.6.4') {
     dependency libraries.slf4j_api
 }
-libraries.log4j_to_slf4j = dependencies.module('org.slf4j:log4j-over-slf4j:1.6.2') {
+libraries.log4j_to_slf4j = dependencies.module('org.slf4j:log4j-over-slf4j:1.6.4') {
     dependency libraries.slf4j_api
 }
-libraries.logback_core = 'ch.qos.logback:logback-core:0.9.29@jar'
-libraries.logback_classic = dependencies.module('ch.qos.logback:logback-classic:0.9.29') {
+libraries.logback_core = 'ch.qos.logback:logback-core:1.0.0@jar'
+libraries.logback_classic = dependencies.module('ch.qos.logback:logback-classic:1.0.0') {
     dependency libraries.logback_core
     dependency libraries.slf4j_api
 }
@@ -91,9 +91,8 @@ libraries += [
         ant_junit: 'org.apache.ant:ant-junit:1.8.2@jar',
         ant_antlr: 'org.apache.ant:ant-antlr:1.8.2@jar',
         antlr: 'antlr:antlr:2.7.7@jar',
-        commons_cli: 'commons-cli:commons-cli:1.2@jar',
         dom4j: 'dom4j:dom4j:1.6.1@jar',
-        guava: 'com.google.guava:guava:r09@jar',
+        guava: 'com.google.guava:guava:10.0.1@jar',
         groovy: 'org.codehaus.groovy:groovy-all:1.8.4@jar',
         jaxen: 'jaxen:jaxen:1.1@jar',
         jcip: "net.jcip:jcip-annotations:1.0",
